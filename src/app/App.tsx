@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { supabase } from "../lib/supabase";
@@ -193,15 +193,38 @@ const IconProjIco = () => (<svg width="24" height="24" viewBox="0 0 24 24" fill=
 const IconBlogIco = () => (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>);
 const IconContactIco = () => (<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg>);
 
+function AnimatedName({ name }: { name: string }) {
+  const [tick, setTick] = useState(0);
+  useEffect(() => { const id = setInterval(() => setTick(t => t + 1), 120); return () => clearInterval(id); }, []);
+  const chars = useMemo(() => {
+    const now = Date.now();
+    const words = name.split(" ");
+    return words.map((word, wi) => (
+      <span key={wi} className="block">
+        {word.split("").map((ch, ci) => {
+          if (ci === 0) return <span key={ci} className="text-primary">{ch}</span>;
+          const globalIndex = words.slice(0, wi).join("").length + ci;
+          const totalChars = words.join("").length;
+          const wave = (now / 4000 + globalIndex / totalChars) % 1;
+          const brightness = Math.max(0, Math.cos((wave - 0.5) * Math.PI * 2));
+          const l = 42 + brightness * 28;
+          return <span key={ci} style={{ color: brightness > 0.05 ? `hsl(110, 100%, ${l}%)` : undefined, transition: "color 0.3s ease" }}>{ch}</span>;
+        })}
+      </span>
+    ));
+  }, [name, tick]);
+  return <>{chars}</>;
+}
+
 function Tag({ label }: { label: string }) {
   return <span className="font-mono-custom text-xs px-2 py-0.5 border border-border text-muted-foreground tracking-wide">{label}</span>;
 }
 
 function SectionHeader({ label, title }: { label: string; title: string }) {
   return (
-    <div className="mb-12 md:mb-16">
-      <p className="font-mono-custom text-xs text-primary tracking-[0.2em] uppercase mb-3">{label}</p>
-      <h2 className="font-display text-5xl md:text-7xl font-bold uppercase tracking-tight text-foreground leading-none">{title}</h2>
+    <div className="mb-10 sm:mb-12 md:mb-16">
+      <p className="font-mono-custom text-xs text-primary tracking-[0.2em] uppercase mb-2 sm:mb-3">{label}</p>
+      <h2 className="font-display text-3xl sm:text-5xl md:text-7xl font-bold uppercase tracking-tight text-foreground leading-none">{title}</h2>
     </div>
   );
 }
@@ -397,10 +420,10 @@ function Navbar({ page, setPage, lang, setLang, theme, setTheme }: {
 function Footer({ setPage, lang }: { setPage: (p: Page) => void; lang: Language }) {
   const t = T[lang];
   return (
-    <footer className="border-t border-border mt-24">
-      <div className="max-w-7xl mx-auto px-5 md:px-8 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+    <footer className="border-t border-border mt-16 sm:mt-24">
+      <div className="max-w-7xl mx-auto px-5 md:px-8 py-10 sm:py-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8">
         <div>
-          <p className="font-display text-3xl font-bold uppercase tracking-widest text-foreground mb-2">A·Y</p>
+          <p className="font-display text-2xl sm:text-3xl font-bold uppercase tracking-widest text-foreground mb-2">A·Y</p>
           <p className="font-mono-custom text-xs text-muted-foreground">{t.heroRole}</p>
         </div>
         <div className="flex flex-col gap-1">
@@ -452,23 +475,18 @@ function HomePage({ setPage, lang, profile, projects, blogPosts, loading, experi
       <section className="min-h-screen flex flex-col justify-center px-5 md:px-8 max-w-7xl mx-auto pt-16">
         <div className="max-w-4xl">
           <p className="font-mono-custom text-xs text-primary tracking-[0.3em] uppercase mb-6">{role}</p>
-          <h1 className="font-display text-6xl sm:text-7xl md:text-[7rem] lg:text-[9rem] font-bold uppercase leading-none tracking-tight mb-8">
-            {displayName.split(" ").map((word, i) => (
-              <span key={i} className="block">
-                <span className="text-primary">{word[0]}</span>
-                <span className="text-foreground">{word.slice(1)}</span>
-              </span>
-            ))}
+          <h1 className="font-display text-4xl text-[3.2rem] sm:text-7xl md:text-[7rem] lg:text-[9rem] font-bold uppercase leading-none tracking-tight mb-8">
+            <AnimatedName name={displayName} />
           </h1>
-          <p className="text-foreground/70 text-lg md:text-xl leading-relaxed max-w-xl mb-10">{t.heroTagline}</p>
-          <div className="flex flex-wrap gap-3">
-            <button onClick={() => setPage("projects")} className="flex items-center gap-2 bg-primary text-primary-foreground font-mono-custom text-sm tracking-widest uppercase px-6 py-3 hover:opacity-90 transition-opacity">{t.heroCTA} <IconArrowRight /></button>
-            <button onClick={() => setPage("contact")} className="flex items-center gap-2 border border-border text-muted-foreground font-mono-custom text-sm tracking-widest uppercase px-6 py-3 hover:border-primary hover:text-primary transition-colors">{t.heroContact}</button>
+          <p className="text-foreground/70 text-sm sm:text-lg md:text-xl leading-relaxed max-w-xl mb-8 sm:mb-10">{t.heroTagline}</p>
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+            <button onClick={() => setPage("projects")} className="flex items-center justify-center gap-2 bg-primary text-primary-foreground font-mono-custom text-xs sm:text-sm tracking-widest uppercase px-5 sm:px-6 py-3 hover:opacity-90 transition-opacity">{t.heroCTA} <IconArrowRight /></button>
+            <button onClick={() => setPage("contact")} className="flex items-center justify-center gap-2 border border-border text-muted-foreground font-mono-custom text-xs sm:text-sm tracking-widest uppercase px-5 sm:px-6 py-3 hover:border-primary hover:text-primary transition-colors">{t.heroContact}</button>
           </div>
         </div>
       </section>
-      <section className="px-5 md:px-8 max-w-7xl mx-auto py-16 border-t border-border">
-        <div className="grid grid-cols-3 gap-8">
+      <section className="px-5 md:px-8 max-w-7xl mx-auto py-12 md:py-16 border-t border-border">
+        <div className="grid grid-cols-3 gap-4 md:gap-8">
           {[{
             label: t.yearsExp,
             value: experiences.length > 0 ? Math.ceil((Date.now() - new Date(experiences.reduce((min, e) => e.start_date < min ? e.start_date : min, experiences[0].start_date)).getTime()) / (365.25 * 86400000)) : 0,
@@ -478,9 +496,9 @@ function HomePage({ setPage, lang, profile, projects, blogPosts, loading, experi
           }, {
             label: t.certsEarned, value: certificates.length, suffix: ""
           }].map(({ label, value, suffix }) => (
-            <div key={label} className="border-l border-primary pl-4 md:pl-6">
-              <div className="font-display text-4xl md:text-6xl font-bold text-primary leading-none mb-2"><AnimatedCounter target={value} suffix={suffix} /></div>
-              <p className="font-mono-custom text-xs text-muted-foreground tracking-wide uppercase">{label}</p>
+            <div key={label} className="border-l border-primary pl-3 md:pl-6">
+              <div className="font-display text-3xl sm:text-4xl md:text-6xl font-bold text-primary leading-none mb-1 md:mb-2"><AnimatedCounter target={value} suffix={suffix} /></div>
+              <p className="font-mono-custom text-[10px] sm:text-xs text-muted-foreground tracking-wide uppercase">{label}</p>
             </div>
           ))}
         </div>
@@ -489,11 +507,11 @@ function HomePage({ setPage, lang, profile, projects, blogPosts, loading, experi
         <SectionHeader label="Navigate" title={t.exploreSections} />
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-px bg-border">
           {SECTION_LINKS.map(s => (
-            <button key={s.page} onClick={() => { setPage(s.page); window.scrollTo(0, 0); }} className="group text-left bg-background p-5 md:p-6 hover:bg-card transition-colors border border-transparent hover:border-primary/30 flex flex-col items-start gap-3">
+            <button key={s.page} onClick={() => { setPage(s.page); window.scrollTo(0, 0); }} className="group text-left bg-background p-4 sm:p-5 md:p-6 hover:bg-card transition-colors border border-transparent hover:border-primary/30 flex flex-col items-start gap-2 sm:gap-3">
               <span className="text-muted-foreground group-hover:text-primary transition-colors">{s.icon}</span>
               <div>
-                <p className="font-display text-base md:text-lg font-bold uppercase tracking-wide group-hover:text-primary transition-colors">{s.label}</p>
-                <p className="font-mono-custom text-xs text-muted-foreground mt-1">{s.desc}</p>
+                <p className="font-display text-sm sm:text-base md:text-lg font-bold uppercase tracking-wide group-hover:text-primary transition-colors">{s.label}</p>
+                <p className="font-mono-custom text-[10px] sm:text-xs text-muted-foreground mt-0.5 sm:mt-1">{s.desc}</p>
               </div>
             </button>
           ))}
@@ -504,16 +522,16 @@ function HomePage({ setPage, lang, profile, projects, blogPosts, loading, experi
           <SectionHeader label="01" title={t.featuredProjects} />
           <button onClick={() => setPage("projects")} className="font-mono-custom text-xs text-primary tracking-wider hover:underline self-start mt-auto mb-1 hidden md:block">{t.viewAll}</button>
         </div>
-        {loading ? <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border">{[1,2,3,4].map(i => <div key={i} className="bg-background p-6 md:p-8 animate-pulse"><div className="aspect-video mb-5 bg-muted"/><div className="h-6 bg-muted w-1/2 mb-2"/><div className="h-4 bg-muted w-3/4"/></div>)}</div> : (
+        {loading ? <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border">{[1,2,3,4].map(i => <div key={i} className="bg-background p-5 md:p-8 animate-pulse"><div className="aspect-video mb-5 bg-muted"/><div className="h-6 bg-muted w-1/2 mb-2"/><div className="h-4 bg-muted w-3/4"/></div>)}</div> : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border">
             {projects.slice(0, 4).map(p => (
-              <button key={p.id} onClick={() => setPage("projects")} className="group text-left bg-background p-6 md:p-8 hover:bg-card transition-colors border border-transparent hover:border-primary/30">
-                <div className="aspect-video mb-5 overflow-hidden bg-secondary">
+              <button key={p.id} onClick={() => setPage("projects")} className="group text-left bg-background p-5 md:p-8 hover:bg-card transition-colors border border-transparent hover:border-primary/30">
+                <div className="aspect-video mb-4 md:mb-5 overflow-hidden bg-secondary">
                   {p.image_url ? <img src={p.image_url} alt={p.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">No image</div>}
                 </div>
-                <h3 className="font-display text-2xl md:text-3xl font-bold uppercase tracking-wide mb-2 group-hover:text-primary transition-colors">{p.title}</h3>
-                <p className="text-muted-foreground text-sm leading-relaxed mb-4">{p.description}</p>
-                <div className="flex flex-wrap gap-1.5">{p.tech_stack.slice(0, 4).map(s => <Tag key={s} label={s} />)}</div>
+                <h3 className="font-display text-xl sm:text-2xl md:text-3xl font-bold uppercase tracking-wide mb-2 group-hover:text-primary transition-colors">{p.title}</h3>
+                <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed mb-3 md:mb-4">{p.description}</p>
+                <div className="flex flex-wrap gap-1 sm:gap-1.5">{p.tech_stack.slice(0, 4).map(s => <Tag key={s} label={s} />)}</div>
               </button>
             ))}
           </div>
@@ -527,11 +545,11 @@ function HomePage({ setPage, lang, profile, projects, blogPosts, loading, experi
         {loading ? <div className="flex flex-col gap-0 divide-y divide-border">{[1,2,3].map(i => <div key={i} className="py-6 animate-pulse"><div className="h-5 bg-muted w-2/3 mb-2"/><div className="h-4 bg-muted w-1/3"/></div>)}</div> : (
           <div className="flex flex-col gap-0 divide-y divide-border">
             {blogPosts.slice(0, 3).map((post, i) => (
-              <button key={post.id} onClick={() => setPage("blog")} className="group flex flex-col md:flex-row md:items-center gap-4 py-6 text-left hover:bg-card/50 transition-colors px-0 md:px-2">
+              <button key={post.id} onClick={() => setPage("blog")} className="group flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 py-5 sm:py-6 text-left hover:bg-card/50 transition-colors px-0 sm:px-2">
                 <span className="font-mono-custom text-xs text-muted-foreground w-6">{String(i + 1).padStart(2, "0")}</span>
                 <div className="flex-1">
-                  <h4 className="font-display text-xl md:text-2xl font-bold uppercase tracking-wide mb-1 group-hover:text-primary transition-colors">{post.translation?.title || post.title}</h4>
-                  <p className="text-muted-foreground text-sm hidden md:block">{(post.translation?.excerpt || "").slice(0, 80)}…</p>
+                  <h4 className="font-display text-lg sm:text-xl md:text-2xl font-bold uppercase tracking-wide mb-1 group-hover:text-primary transition-colors">{post.translation?.title || post.title}</h4>
+                  <p className="text-muted-foreground text-xs sm:text-sm hidden sm:block">{(post.translation?.excerpt || "").slice(0, 80)}…</p>
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="font-mono-custom text-xs text-muted-foreground">{post.published_at ? new Date(post.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}</span>
@@ -543,9 +561,9 @@ function HomePage({ setPage, lang, profile, projects, blogPosts, loading, experi
           </div>
         )}
       </section>
-      <section className="px-5 md:px-8 max-w-7xl mx-auto py-16 border-t border-border">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <h2 className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tight leading-none">{t.contactTitle}</h2>
+      <section className="px-5 md:px-8 max-w-7xl mx-auto py-12 md:py-16 border-t border-border">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5 md:gap-6">
+          <h2 className="font-display text-3xl sm:text-4xl md:text-6xl font-bold uppercase tracking-tight leading-none">{t.contactTitle}</h2>
           <button onClick={() => setPage("contact")} className="flex items-center gap-2 border border-border text-muted-foreground font-mono-custom text-sm tracking-widest uppercase px-6 py-3 hover:border-primary hover:text-primary transition-colors w-fit">{t.heroContact} <IconArrowRight /></button>
         </div>
       </section>
@@ -557,17 +575,17 @@ function HomePage({ setPage, lang, profile, projects, blogPosts, loading, experi
 function AboutPage({ lang, profile }: { lang: Language; profile: Profile | null }) {
   const t = T[lang];
   return (
-    <div className="pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-24">
+    <div className="pt-20 sm:pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-16 sm:pb-24">
       <SectionHeader label="About" title={t.about} />
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-12 md:gap-16">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-10 sm:gap-12 md:gap-16">
         <div className="md:col-span-4 lg:col-span-3">
           <div className="aspect-square bg-secondary overflow-hidden mb-4">
             {profile?.avatar_url ? <img src={profile.avatar_url} alt={profile.full_name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground">No photo</div>}
           </div>
-          <p className="font-display text-xl font-bold uppercase tracking-wide">{profile?.full_name || "Abdelhalim Yasser"}</p>
+          <p className="font-display text-lg sm:text-xl font-bold uppercase tracking-wide">{profile?.full_name || "Abdelhalim Yasser"}</p>
           <p className="font-mono-custom text-xs text-primary tracking-widest uppercase mt-1 mb-4">{profile?.headline || t.heroRole}</p>
-          <p className="font-mono-custom text-xs text-muted-foreground mb-2">Cairo, Egypt</p>
-          <p className="font-mono-custom text-xs text-muted-foreground mb-6">{profile?.email || "abdelhalimyasser88@gmail.com"}</p>
+          <p className="font-mono-custom text-[10px] sm:text-xs text-muted-foreground mb-2">Cairo, Egypt</p>
+          <p className="font-mono-custom text-[10px] sm:text-xs text-muted-foreground mb-6 break-all sm:break-normal">{profile?.email || "abdelhalimyasser88@gmail.com"}</p>
           {profile?.resume_url && <a href={profile.resume_url} className="flex items-center gap-2 bg-primary text-primary-foreground font-mono-custom text-xs tracking-widest uppercase px-4 py-2.5 hover:opacity-90 transition-opacity w-fit"><IconDownload /> {t.downloadCV}</a>}
           <div className="flex gap-3 mt-4">
             {SOCIALS.github && <a href={SOCIALS.github} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors"><IconGithub /></a>}
@@ -603,14 +621,14 @@ function SkillsPage({ lang, skills }: { lang: Language; skills: DbSkill[] }) {
   const categories = skills.reduce<Record<string, DbSkill[]>>((acc, s) => { (acc[s.category] = acc[s.category] || []).push(s); return acc; }, {});
   const cats = Object.entries(categories);
   return (
-    <div className="pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-24">
+    <div className="pt-20 sm:pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-16 sm:pb-24">
       <SectionHeader label="Skills" title={t.skills} />
-      <div className="flex flex-col gap-12">
+      <div className="flex flex-col gap-10 sm:gap-12">
         {cats.map(([category, items]) => (
-          <div key={category} className="border-t border-border pt-8">
-            <p className="font-mono-custom text-xs text-primary tracking-[0.2em] uppercase mb-5">{category}</p>
-            <div className="flex flex-wrap gap-2">
-              {items.map(item => <span key={item.id} className="font-mono-custom text-sm px-3 py-1.5 border border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-default">{item.name}</span>)}
+          <div key={category} className="border-t border-border pt-6 sm:pt-8">
+            <p className="font-mono-custom text-xs text-primary tracking-[0.2em] uppercase mb-4 sm:mb-5">{category}</p>
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              {items.map(item => <span key={item.id} className="font-mono-custom text-xs sm:text-sm px-2.5 sm:px-3 py-1 sm:py-1.5 border border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors cursor-default">{item.name}</span>)}
             </div>
           </div>
         ))}
@@ -625,21 +643,21 @@ function ExperiencePage({ lang, experiences }: { lang: Language; experiences: Db
   const t = T[lang];
   const fmtDate = (d: string) => { const dt = new Date(d); return dt.toLocaleDateString("en-US", { month: "short", year: "numeric" }); };
   return (
-    <div className="pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-24">
+    <div className="pt-20 sm:pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-16 sm:pb-24">
       <SectionHeader label="Experience" title={t.experience} />
       <div className="relative">
         <div className="absolute left-0 md:left-[200px] top-0 bottom-0 w-px bg-border" />
         {experiences.map((exp) => (
-          <div key={exp.id} className="relative flex flex-col md:flex-row gap-0 md:gap-8 pb-12">
-            <div className="md:w-[200px] md:text-right md:pr-8 mb-2 md:mb-0 flex md:flex-col gap-4 md:gap-1">
+          <div key={exp.id} className="relative flex flex-col md:flex-row gap-0 md:gap-8 pb-10 sm:pb-12">
+            <div className="md:w-[200px] md:text-right md:pr-8 mb-2 md:mb-0 flex md:flex-col gap-3 sm:gap-4 md:gap-1">
               <p className="font-mono-custom text-xs text-muted-foreground">{fmtDate(exp.start_date)}</p>
               <p className="font-mono-custom text-xs text-muted-foreground">—</p>
               <p className="font-mono-custom text-xs" style={{ color: exp.is_current ? "var(--primary)" : "var(--muted-foreground)" }}>{exp.end_date ? fmtDate(exp.end_date) : t.currentRole}</p>
             </div>
             <div className="absolute left-[-6px] md:left-[194px] top-1 w-3 h-3 border-2 bg-background" style={{ borderColor: exp.is_current ? "var(--primary)" : "rgba(128,128,128,0.3)" }} />
-            <div className="pl-0 md:pl-8 flex-1">
-              <div className="flex flex-wrap items-center gap-3 mb-1">
-                <h3 className="font-display text-2xl md:text-3xl font-bold uppercase tracking-wide">{exp.company}</h3>
+            <div className="pl-4 md:pl-8 flex-1">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-1">
+                <h3 className="font-display text-xl sm:text-2xl md:text-3xl font-bold uppercase tracking-wide">{exp.company}</h3>
                 {exp.is_current && <span className="font-mono-custom text-xs px-2 py-0.5 border border-primary text-primary tracking-wide uppercase">{t.currentRole}</span>}
               </div>
               <p className="font-mono-custom text-xs text-primary tracking-widest uppercase mb-3">{exp.position}</p>
@@ -659,16 +677,16 @@ function CertificatesPage({ lang, certificates }: { lang: Language; certificates
   const t = T[lang];
   const fmtDate = (d: string) => new Date(d).toLocaleDateString("en-US", { month: "short", year: "numeric" });
   return (
-    <div className="pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-24">
+    <div className="pt-20 sm:pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-16 sm:pb-24">
       <SectionHeader label="Credentials" title={t.certificates} />
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-border">
         {certificates.map(cert => (
-          <button key={cert.id} onClick={() => setSelected(cert)} className="group text-left bg-background p-6 hover:bg-card transition-colors border border-transparent hover:border-primary/30">
-            <div className="aspect-video bg-secondary mb-4 overflow-hidden">
+          <button key={cert.id} onClick={() => setSelected(cert)} className="group text-left bg-background p-5 sm:p-6 hover:bg-card transition-colors border border-transparent hover:border-primary/30">
+            <div className="aspect-video bg-secondary mb-3 sm:mb-4 overflow-hidden">
               {cert.image_url ? <img src={cert.image_url} alt={cert.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground">No image</div>}
             </div>
-            <p className="font-mono-custom text-xs text-primary tracking-widest uppercase mb-1">{cert.issuer}</p>
-            <h3 className="font-display text-xl font-bold uppercase tracking-wide mb-1 group-hover:text-primary transition-colors">{cert.title}</h3>
+            <p className="font-mono-custom text-[10px] sm:text-xs text-primary tracking-widest uppercase mb-1">{cert.issuer}</p>
+            <h3 className="font-display text-base sm:text-xl font-bold uppercase tracking-wide mb-1 group-hover:text-primary transition-colors">{cert.title}</h3>
             <p className="font-mono-custom text-xs text-muted-foreground">{fmtDate(cert.issue_date)}</p>
             {cert.credential_url && <div className="flex items-center gap-1.5 mt-3 font-mono-custom text-xs text-muted-foreground group-hover:text-primary transition-colors">{t.viewCert} <IconExternalLink /></div>}
           </button>
@@ -687,7 +705,7 @@ function ProjectsPage({ setPage, setSelectedProject, lang, projects }: {
   const t = T[lang];
   const open = (p: DbProject) => { setSelectedProject(p); setPage("project-detail"); window.scrollTo(0, 0); };
   return (
-    <div className="pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-24">
+    <div className="pt-20 sm:pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-16 sm:pb-24">
       <SectionHeader label="Work" title={t.projects} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border">
         {projects.map(p => (
@@ -695,10 +713,10 @@ function ProjectsPage({ setPage, setSelectedProject, lang, projects }: {
             <div className="aspect-video overflow-hidden bg-secondary">
               {p.image_url ? <img src={p.image_url} alt={p.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground">No image</div>}
             </div>
-            <div className="p-6 md:p-8">
-              <h3 className="font-display text-3xl md:text-4xl font-bold uppercase tracking-wide mb-3 group-hover:text-primary transition-colors">{p.title}</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed mb-5">{p.description}</p>
-              <div className="flex flex-wrap gap-1.5 mb-4">{p.tech_stack.slice(0, 5).map(s => <Tag key={s} label={s} />)}</div>
+            <div className="p-5 sm:p-6 md:p-8">
+              <h3 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-wide mb-2 sm:mb-3 group-hover:text-primary transition-colors">{p.title}</h3>
+              <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed mb-4 sm:mb-5">{p.description}</p>
+              <div className="flex flex-wrap gap-1 sm:gap-1.5 mb-3 sm:mb-4">{p.tech_stack.slice(0, 5).map(s => <Tag key={s} label={s} />)}</div>
               <div className="flex items-center gap-1.5 font-mono-custom text-xs text-primary">{t.viewProject} <IconArrowRight /></div>
             </div>
           </button>
@@ -713,12 +731,12 @@ function ProjectDetailPage({ project, setPage, lang }: { project: DbProject; set
   const t = T[lang];
   if (!project) return null;
   return (
-    <div className="pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-24">
-      <button onClick={() => { setPage("projects"); window.scrollTo(0, 0); }} className="font-mono-custom text-xs text-muted-foreground hover:text-primary transition-colors mb-8 block tracking-wide">{t.backToProjects}</button>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+    <div className="pt-20 sm:pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-16 sm:pb-24">
+      <button onClick={() => { setPage("projects"); window.scrollTo(0, 0); }} className="font-mono-custom text-xs text-muted-foreground hover:text-primary transition-colors mb-6 sm:mb-8 block tracking-wide">{t.backToProjects}</button>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 sm:gap-12">
         <div className="lg:col-span-8">
           <p className="font-mono-custom text-xs text-primary tracking-[0.2em] uppercase mb-3">Project</p>
-          <h1 className="font-display text-5xl md:text-7xl font-bold uppercase tracking-tight leading-none mb-6">{project.title}</h1>
+          <h1 className="font-display text-4xl sm:text-5xl md:text-7xl font-bold uppercase tracking-tight leading-none mb-5 sm:mb-6">{project.title}</h1>
           <div className="aspect-video bg-secondary overflow-hidden mb-8">
             {project.image_url ? <img src={project.image_url} alt={project.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground">No image</div>}
           </div>
@@ -791,19 +809,19 @@ function BlogPage({ setPage, setSelectedPost, lang, blogPosts }: {
   const t = T[lang];
   const open = (post: DbBlogPost & { translation?: DbBlogTranslation }) => { setSelectedPost(post); setPage("blog-detail"); window.scrollTo(0, 0); };
   return (
-    <div className="pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-24">
+    <div className="pt-20 sm:pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-16 sm:pb-24">
       <SectionHeader label="Writing" title={t.blog} />
       <div className="flex flex-col gap-0 divide-y divide-border">
         {blogPosts.map(post => (
-          <button key={post.id} onClick={() => open(post)} className="group grid grid-cols-1 md:grid-cols-12 gap-6 py-8 text-left hover:bg-card/30 transition-colors">
+          <button key={post.id} onClick={() => open(post)} className="group grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6 py-6 sm:py-8 text-left hover:bg-card/30 transition-colors">
             <div className="md:col-span-3 aspect-video md:aspect-[4/3] bg-secondary overflow-hidden">
               {post.cover_image_url ? <img src={post.cover_image_url} alt={post.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">No image</div>}
             </div>
             <div className="md:col-span-9 flex flex-col justify-center">
-              <div className="flex flex-wrap gap-1.5 mb-3">{post.tags.map(tag => <Tag key={tag} label={tag} />)}</div>
-              <h3 className="font-display text-2xl md:text-3xl lg:text-4xl font-bold uppercase tracking-wide mb-3 group-hover:text-primary transition-colors">{post.translation?.title || post.title}</h3>
-              <p className="text-muted-foreground text-sm leading-relaxed mb-4 line-clamp-2">{post.translation?.excerpt || ""}</p>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap gap-1 sm:gap-1.5 mb-2 sm:mb-3">{post.tags.map(tag => <Tag key={tag} label={tag} />)}</div>
+              <h3 className="font-display text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold uppercase tracking-wide mb-2 sm:mb-3 group-hover:text-primary transition-colors">{post.translation?.title || post.title}</h3>
+              <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed mb-3 sm:mb-4 line-clamp-2">{post.translation?.excerpt || ""}</p>
+              <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
                 <span className="font-mono-custom text-xs text-muted-foreground">{post.published_at ? new Date(post.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}</span>
                 <span className="font-mono-custom text-xs text-muted-foreground">{post.read_time_minutes} min read</span>
                 {lang !== "EN" && <span className="font-mono-custom text-xs text-muted-foreground border border-border px-2 py-0.5">AI Translated</span>}
@@ -828,11 +846,11 @@ function BlogDetailPage({ post, setPage, lang, profile }: {
   const content = post.translation?.content || "";
   const headings = content.split("\n").filter(l => l.startsWith("## ")).map(l => l.slice(3));
   return (
-    <div className="pt-24 pb-24">
+    <div className="pt-20 sm:pt-24 pb-16 sm:pb-24">
       <div className="px-5 md:px-8 max-w-7xl mx-auto">
-        <button onClick={() => { setPage("blog"); window.scrollTo(0, 0); }} className="font-mono-custom text-xs text-muted-foreground hover:text-primary transition-colors mb-8 block tracking-wide">{t.backToBlog}</button>
+        <button onClick={() => { setPage("blog"); window.scrollTo(0, 0); }} className="font-mono-custom text-xs text-muted-foreground hover:text-primary transition-colors mb-6 sm:mb-8 block tracking-wide">{t.backToBlog}</button>
       </div>
-      <div className="max-w-7xl mx-auto px-5 md:px-8 grid grid-cols-1 lg:grid-cols-12 gap-12">
+      <div className="max-w-7xl mx-auto px-5 md:px-8 grid grid-cols-1 lg:grid-cols-12 gap-10 sm:gap-12">
         <aside className="hidden lg:block lg:col-span-3">
           <div className="sticky top-24">
             <p className="font-mono-custom text-xs text-primary tracking-[0.2em] uppercase mb-4">{t.tableOfContents}</p>
@@ -848,8 +866,8 @@ function BlogDetailPage({ post, setPage, lang, profile }: {
           {tocOpen && <nav className="mt-2 border border-border p-3 flex flex-col gap-1">{headings.map(h => <a key={h} href={`#${h.toLowerCase().replace(/\s+/g, "-")}`} className="font-mono-custom text-xs text-muted-foreground hover:text-primary transition-colors py-1">{h}</a>)}</nav>}
         </div>
         <article className="lg:col-span-9">
-          <div className="flex flex-wrap gap-1.5 mb-4">{post.tags.map(tag => <Tag key={tag} label={tag} />)}</div>
-          <h1 className="font-display text-4xl md:text-6xl font-bold uppercase tracking-tight leading-none mb-4">{post.translation?.title || post.title}</h1>
+          <div className="flex flex-wrap gap-1 sm:gap-1.5 mb-3 sm:mb-4">{post.tags.map(tag => <Tag key={tag} label={tag} />)}</div>
+          <h1 className="font-display text-3xl sm:text-4xl md:text-6xl font-bold uppercase tracking-tight leading-none mb-3 sm:mb-4">{post.translation?.title || post.title}</h1>
           <div className="flex items-center gap-4 mb-8 border-b border-border pb-6">
             <span className="font-mono-custom text-xs text-muted-foreground">{post.published_at ? new Date(post.published_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : ""}</span>
             <span className="font-mono-custom text-xs text-muted-foreground">{post.read_time_minutes} min read</span>
@@ -993,14 +1011,14 @@ function ContactPage({ lang }: { lang: Language }) {
     }
   };
   return (
-    <div className="pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-24">
+    <div className="pt-20 sm:pt-24 px-5 md:px-8 max-w-7xl mx-auto pb-16 sm:pb-24">
       <SectionHeader label="Contact" title={t.contact} />
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 sm:gap-12">
         <div className="lg:col-span-4">
-          <p className="text-muted-foreground leading-relaxed mb-8">{t.contactSub}</p>
-          <div className="flex flex-col gap-3">
-            <a href={SOCIALS.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 font-mono-custom text-xs text-muted-foreground hover:text-primary transition-colors"><IconGithub /> github.com/abdelhalimyasser</a>
-            <a href={SOCIALS.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 font-mono-custom text-xs text-muted-foreground hover:text-primary transition-colors"><IconLinkedin /> linkedin.com/in/abdelhalimyasser</a>
+          <p className="text-muted-foreground text-sm sm:text-base leading-relaxed mb-6 sm:mb-8">{t.contactSub}</p>
+          <div className="flex flex-col gap-2.5 sm:gap-3">
+            <a href={SOCIALS.github} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 font-mono-custom text-[10px] sm:text-xs text-muted-foreground hover:text-primary transition-colors"><IconGithub /> <span className="break-all sm:break-normal">github.com/abdelhalimyasser</span></a>
+            <a href={SOCIALS.linkedin} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 font-mono-custom text-[10px] sm:text-xs text-muted-foreground hover:text-primary transition-colors"><IconLinkedin /> <span className="break-all sm:break-normal">linkedin.com/in/abdelhalimyasser</span></a>
             <a href={SOCIALS.instagram} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 font-mono-custom text-xs text-muted-foreground hover:text-primary transition-colors"><IconInstagram /> instagram.com/abdelhalimyasserr</a>
             <a href={SOCIALS.x} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 font-mono-custom text-xs text-muted-foreground hover:text-primary transition-colors"><IconXSocial /> x.com/abdelhalimyass</a>
             <a href={SOCIALS.email} className="flex items-center gap-3 font-mono-custom text-xs text-muted-foreground hover:text-primary transition-colors"><IconGlobe /> abdelhalimyasser88@gmail.com</a>
