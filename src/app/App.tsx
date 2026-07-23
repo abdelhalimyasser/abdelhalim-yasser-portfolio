@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Analytics } from "@vercel/analytics/react";
 import { supabase } from "../lib/supabase";
 import type { Profile, DbProject, DbBlogPost, DbBlogTranslation, DbCertificate, DbExperience, DbSkill } from "../lib/supabase";
 import ThemeToggle, { useTheme, type Theme } from "./components/ThemeToggle";
@@ -1159,6 +1160,7 @@ export default function App() {
         {page === "contact" && <ContactPage lang={lang} />}
       </div>
       <Footer setPage={navigate} lang={lang} />
+      <Analytics />
     </div>
   );
 }
