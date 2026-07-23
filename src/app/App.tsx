@@ -195,24 +195,35 @@ const IconContactIco = () => (<svg width="24" height="24" viewBox="0 0 24 24" fi
 
 function AnimatedName({ name }: { name: string }) {
   const [tick, setTick] = useState(0);
-  useEffect(() => { const id = setInterval(() => setTick(t => t + 1), 120); return () => clearInterval(id); }, []);
+  useEffect(() => {
+    let raf: number;
+    let lastFrame = 0;
+    const interval = 250;
+    const loop = (time: number) => {
+      if (time - lastFrame >= interval) { lastFrame = time; setTick(t => t + 1); }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  const words = useMemo(() => name.split(" "), [name]);
+  const totalLen = useMemo(() => name.replace(/\s/g, "").length, [name]);
   const chars = useMemo(() => {
     const now = Date.now();
-    const words = name.split(" ");
+    let globalIdx = 0;
     return words.map((word, wi) => (
       <span key={wi} className="block">
         {word.split("").map((ch, ci) => {
-          if (ci === 0) return <span key={ci} className="text-primary">{ch}</span>;
-          const globalIndex = words.slice(0, wi).join("").length + ci;
-          const totalChars = words.join("").length;
-          const wave = (now / 4000 + globalIndex / totalChars) % 1;
+          if (ci === 0) { globalIdx++; return <span key={ci} className="text-primary">{ch}</span>; }
+          const gIdx = globalIdx++;
+          const wave = (now / 4000 + gIdx / totalLen) % 1;
           const brightness = Math.max(0, Math.cos((wave - 0.5) * Math.PI * 2));
           const l = 42 + brightness * 28;
           return <span key={ci} style={{ color: brightness > 0.05 ? `hsl(110, 100%, ${l}%)` : undefined, transition: "color 0.3s ease" }}>{ch}</span>;
         })}
       </span>
     ));
-  }, [name, tick]);
+  }, [name, tick, words, totalLen]);
   return <>{chars}</>;
 }
 
@@ -285,7 +296,7 @@ function BlueprintViewer({ imageId, label }: { imageId: string; label: string })
   return (
     <div className="border border-border bg-muted overflow-hidden relative select-none" style={{ height: 400, cursor: dragging ? "grabbing" : "grab" }}
       onWheel={onWheel} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={onMouseUp}>
-      <img src={`https://images.unsplash.com/${imageId}?w=1200&h=800&fit=crop&auto=format`} alt={label} draggable={false}
+      <img src={`https://images.unsplash.com/${imageId}?w=1200&h=800&fit=crop&auto=format`} alt={label} draggable={false} loading="lazy"
         style={{ transform: `translate(${pan.x}px,${pan.y}px) scale(${scale})`, transformOrigin: "center", transition: dragging ? "none" : "transform 0.08s" }} className="w-full h-full object-cover" />
       <div className="absolute top-3 left-3 font-mono-custom text-xs text-muted-foreground bg-card/90 border border-border px-2 py-1">{Math.round(scale * 100)}%</div>
       <div className="absolute bottom-3 right-3 flex gap-1.5">
@@ -527,7 +538,7 @@ function HomePage({ setPage, lang, profile, projects, blogPosts, loading, experi
             {projects.slice(0, 4).map(p => (
               <button key={p.id} onClick={() => setPage("projects")} className="group text-left bg-background p-5 md:p-8 hover:bg-card transition-colors border border-transparent hover:border-primary/30">
                 <div className="aspect-video mb-4 md:mb-5 overflow-hidden bg-secondary">
-                  {p.image_url ? <img src={p.image_url} alt={p.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">No image</div>}
+                  {p.image_url ? <img src={p.image_url} alt={p.title} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">No image</div>}
                 </div>
                 <h3 className="font-display text-xl sm:text-2xl md:text-3xl font-bold uppercase tracking-wide mb-2 group-hover:text-primary transition-colors">{p.title}</h3>
                 <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed mb-3 md:mb-4">{p.description}</p>
@@ -580,7 +591,7 @@ function AboutPage({ lang, profile }: { lang: Language; profile: Profile | null 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-10 sm:gap-12 md:gap-16">
         <div className="md:col-span-4 lg:col-span-3">
           <div className="aspect-square bg-secondary overflow-hidden mb-4">
-            {profile?.avatar_url ? <img src={profile.avatar_url} alt={profile.full_name} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground">No photo</div>}
+            {profile?.avatar_url ? <img src={profile.avatar_url} alt={profile.full_name} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground">No photo</div>}
           </div>
           <p className="font-display text-lg sm:text-xl font-bold uppercase tracking-wide">{profile?.full_name || "Abdelhalim Yasser"}</p>
           <p className="font-mono-custom text-xs text-primary tracking-widest uppercase mt-1 mb-4">{profile?.headline || t.heroRole}</p>
@@ -683,7 +694,7 @@ function CertificatesPage({ lang, certificates }: { lang: Language; certificates
         {certificates.map(cert => (
           <button key={cert.id} onClick={() => setSelected(cert)} className="group text-left bg-background p-5 sm:p-6 hover:bg-card transition-colors border border-transparent hover:border-primary/30">
             <div className="aspect-video bg-secondary mb-3 sm:mb-4 overflow-hidden">
-              {cert.image_url ? <img src={cert.image_url} alt={cert.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground">No image</div>}
+          {cert.image_url ? <img src={cert.image_url} alt={cert.title} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground">No image</div>}
             </div>
             <p className="font-mono-custom text-[10px] sm:text-xs text-primary tracking-widest uppercase mb-1">{cert.issuer}</p>
             <h3 className="font-display text-base sm:text-xl font-bold uppercase tracking-wide mb-1 group-hover:text-primary transition-colors">{cert.title}</h3>
@@ -711,7 +722,7 @@ function ProjectsPage({ setPage, setSelectedProject, lang, projects }: {
         {projects.map(p => (
           <button key={p.id} onClick={() => open(p)} className="group text-left bg-background hover:bg-card transition-colors border border-transparent hover:border-primary/30">
             <div className="aspect-video overflow-hidden bg-secondary">
-              {p.image_url ? <img src={p.image_url} alt={p.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground">No image</div>}
+              {p.image_url ? <img src={p.image_url} alt={p.title} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground">No image</div>}
             </div>
             <div className="p-5 sm:p-6 md:p-8">
               <h3 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold uppercase tracking-wide mb-2 sm:mb-3 group-hover:text-primary transition-colors">{p.title}</h3>
@@ -738,7 +749,7 @@ function ProjectDetailPage({ project, setPage, lang }: { project: DbProject; set
           <p className="font-mono-custom text-xs text-primary tracking-[0.2em] uppercase mb-3">Project</p>
           <h1 className="font-display text-4xl sm:text-5xl md:text-7xl font-bold uppercase tracking-tight leading-none mb-5 sm:mb-6">{project.title}</h1>
           <div className="aspect-video bg-secondary overflow-hidden mb-8">
-            {project.image_url ? <img src={project.image_url} alt={project.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground">No image</div>}
+            {project.image_url ? <img src={project.image_url} alt={project.title} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground">No image</div>}
           </div>
           {project.long_description && (
             <div className="prose-custom">
@@ -815,7 +826,7 @@ function BlogPage({ setPage, setSelectedPost, lang, blogPosts }: {
         {blogPosts.map(post => (
           <button key={post.id} onClick={() => open(post)} className="group grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-6 py-6 sm:py-8 text-left hover:bg-card/30 transition-colors">
             <div className="md:col-span-3 aspect-video md:aspect-[4/3] bg-secondary overflow-hidden">
-              {post.cover_image_url ? <img src={post.cover_image_url} alt={post.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">No image</div>}
+              {post.cover_image_url ? <img src={post.cover_image_url} alt={post.title} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">No image</div>}
             </div>
             <div className="md:col-span-9 flex flex-col justify-center">
               <div className="flex flex-wrap gap-1 sm:gap-1.5 mb-2 sm:mb-3">{post.tags.map(tag => <Tag key={tag} label={tag} />)}</div>
@@ -873,7 +884,7 @@ function BlogDetailPage({ post, setPage, lang, profile }: {
             <span className="font-mono-custom text-xs text-muted-foreground">{post.read_time_minutes} min read</span>
             {lang !== "EN" && <span className="font-mono-custom text-xs text-muted-foreground border border-border px-2 py-0.5">AI Translated — please verify</span>}
           </div>
-          {post.cover_image_url && <div className="aspect-video bg-secondary overflow-hidden mb-10"><img src={post.cover_image_url} alt={post.title} className="w-full h-full object-cover" /></div>}
+          {post.cover_image_url && <div className="aspect-video bg-secondary overflow-hidden mb-10"><img src={post.cover_image_url} alt={post.title} className="w-full h-full object-cover" loading="lazy" /></div>}
           <div className="prose prose-neutral dark:prose-invert max-w-none">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
               h1: ({ children }) => <h1 className="font-display text-4xl md:text-5xl font-bold uppercase tracking-tight text-foreground mb-6 leading-none mt-12">{children}</h1>,
@@ -910,7 +921,7 @@ function BlogDetailPage({ post, setPage, lang, profile }: {
           </div>
           <div className="mt-12 pt-8 border-t border-border flex items-center gap-4">
             <div className="w-10 h-10 bg-secondary overflow-hidden flex-shrink-0 rounded-full">
-              {profile?.avatar_url ? <img src={profile.avatar_url} alt="Author" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">No photo</div>}
+              {profile?.avatar_url ? <img src={profile.avatar_url} alt="Author" className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">No photo</div>}
             </div>
             <div>
               <p className="font-display text-base font-bold uppercase tracking-wide">Abdelhalim Yasser</p>
